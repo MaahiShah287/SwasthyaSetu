@@ -18,10 +18,16 @@ export default function EmergencyProfile() {
     emergency_contact: ''
   });
 
+  const [vaxStats, setVaxStats] = useState<any>(null);
+
   const fetchProfile = async () => {
     try {
-      const resp = await api.get('/profile/');
+      const [resp, vaxRes] = await Promise.all([
+        api.get('/profile/').catch(() => ({ data: {} })),
+        api.get('/vaccinations/summary').catch(() => ({ data: null }))
+      ]);
       if (resp.data.name) setProfile(resp.data);
+      if (vaxRes.data) setVaxStats(vaxRes.data);
     } catch (err) {
       console.error(err);
     }
@@ -219,6 +225,42 @@ export default function EmergencyProfile() {
                   {[...Array(15)].map((_, i) => <div key={i} className={`w-1 h-3.5 rounded-full ${i < 11 ? 'bg-[var(--accent-primary)]' : 'bg-[var(--border-main)]'}`} />)}
                 </div>
               </div>
+            </div>
+
+            {/* Vaccination Status Widget in Patient Identity */}
+            <div className="bg-gradient-to-br from-blue-500/10 via-teal-500/10 to-transparent border border-blue-500/20 p-6 rounded-[2.5rem] shadow-xl space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">Vaccination Status</h3>
+                <span className="text-[10px] font-black uppercase tracking-wider text-blue-500 bg-blue-500/10 px-2.5 py-1 rounded-full">
+                  Live Status
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Verified digital immunization history and status engine.
+              </p>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="p-3 rounded-xl bg-white/80 dark:bg-slate-900/80 text-center border border-slate-200 dark:border-white/10">
+                  <span className="block text-slate-400 text-[10px] font-bold">COMPLETED</span>
+                  <span className="text-base font-extrabold text-emerald-500">{vaxStats?.completed ?? 0}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-white/80 dark:bg-slate-900/80 text-center border border-slate-200 dark:border-white/10">
+                  <span className="block text-slate-400 text-[10px] font-bold">UPCOMING</span>
+                  <span className="text-base font-extrabold text-cyan-500">{vaxStats?.upcoming ?? 0}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-white/80 dark:bg-slate-900/80 text-center border border-slate-200 dark:border-white/10">
+                  <span className="block text-slate-400 text-[10px] font-bold">OVERDUE</span>
+                  <span className="text-base font-extrabold text-rose-500">{vaxStats?.overdue ?? 0}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-white/80 dark:bg-slate-900/80 text-center border border-slate-200 dark:border-white/10">
+                  <span className="block text-slate-400 text-[10px] font-bold">GAPS</span>
+                  <span className="text-base font-extrabold text-purple-500">{vaxStats?.gaps ?? 0}</span>
+                </div>
+              </div>
+              <a href="/vaccinations" className="block pt-2">
+                <button type="button" className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md">
+                  View Full Vaccination History
+                </button>
+              </a>
             </div>
 
             <div className="p-6 bg-blue-50 dark:bg-blue-500/5 rounded-[2rem] border border-blue-100 dark:border-blue-500/10">

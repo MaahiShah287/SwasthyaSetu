@@ -1,5 +1,32 @@
 import { useTheme } from '../context/ThemeContext';
-import { Sun, Moon, LogOut, User, LayoutDashboard, FileUp, ClipboardList, Shield, Settings, Search, Bell, Menu, X, Lightbulb, MessageSquare, Database, FlaskConical, Map as MapIcon } from 'lucide-react';
+import { 
+  Sun, 
+  Moon, 
+  LogOut, 
+  User, 
+  LayoutDashboard, 
+  FileUp, 
+  ClipboardList, 
+  Shield, 
+  Settings, 
+  Search, 
+  Bell, 
+  Menu, 
+  X, 
+  Lightbulb, 
+  MessageSquare, 
+  Database, 
+  FlaskConical, 
+  Map as MapIcon, 
+  Stethoscope,
+  Building2,
+  Truck,
+  Calendar,
+  Bed,
+  Activity,
+  Sparkles,
+  Syringe
+} from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
@@ -122,6 +149,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const patientItems = [
     { to: '/', icon: LayoutDashboard, label: 'Health Center' },
+    { to: '/follow-ups', icon: Calendar, label: 'Follow-Up & Care Plan' },
+    { to: '/vaccinations', icon: Syringe, label: 'Vaccination Tracking' },
+    { to: '/doctors', icon: Stethoscope, label: 'Find Doctors' },
+    { to: '/hospitals', icon: Building2, label: 'Hospital Vacancies' },
+    { to: '/triage', icon: Sparkles, label: 'AI Health Triage' },
     { to: '/upload', icon: FileUp, label: 'Vault Upload' },
     { to: '/reports', icon: ClipboardList, label: 'Medical Records' },
     { to: '/claims', icon: Shield, label: 'Clinical Audit' },
@@ -137,6 +169,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const doctorItems = [
     { to: '/doctor', icon: LayoutDashboard, label: 'Clinic Overview' },
+    { to: '/follow-ups', icon: Calendar, label: 'Follow-Up Management' },
+    { to: '/doctors', icon: Stethoscope, label: 'Doctor Network' },
+    { to: '/hospitals', icon: Building2, label: 'Hospital Network' },
+    { to: '/triage', icon: Sparkles, label: 'AI Health Triage' },
     { to: '/reports', icon: ClipboardList, label: 'Case Folders' },
     { to: '/disease-hub', icon: MapIcon, label: 'Epidemiology' },
     { type: 'divider', label: 'Medical Intelligence' },
@@ -145,7 +181,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { to: '/settings', icon: Settings, label: 'Practice Profile' },
   ];
 
-  const menuItems = role === 'doctor' ? doctorItems : patientItems;
+  const hospitalItems = [
+    { to: '/hospital', icon: Building2, label: 'Hospital Command' },
+    { to: '/follow-ups', icon: Calendar, label: 'Follow-Up & Referrals' },
+    { to: '/hospitals', icon: Bed, label: 'Live Bed Matrix' },
+    { to: '/doctors', icon: Stethoscope, label: 'Doctor Specialists' },
+    { to: '/disease-hub', icon: MapIcon, label: 'Outbreak Radar' },
+    { type: 'divider', label: 'Clinical Operations' },
+    { to: '/claims', icon: Shield, label: 'Hospital Audit' },
+    { to: '/settings', icon: Settings, label: 'Facility Profile' },
+  ];
+
+  const menuItems = role === 'doctor' ? doctorItems : role === 'hospital' ? hospitalItems : patientItems;
+
 
   return (
     <div className={`min-h-screen flex ${theme === 'dark' ? 'dark text-white' : 'text-slate-900'}`}>

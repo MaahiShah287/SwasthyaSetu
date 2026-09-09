@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SwasthyaSetu AI | Static Demo</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="bg-layer">
+        <div class="particle-grid"></div>
+        <div class="blob" style="top: -10%; left: -10%; width: 50%; height: 50%; background: rgba(37, 99, 235, 0.1);"></div>
+    </div>
+
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside>
+            <div class="logo-section">
+                <div class="logo-box">S</div>
+                <h1 style="font-size: 20px; font-weight: 700;">SwasthyaSetu</h1>
+            </div>
+
+            <nav class="nav-links">
+                <a href="#dashboard" class="nav-item active" data-page="dashboard">
+                    <i data-lucide="layout-dashboard" size="20"></i>
+                    <span>Health Center</span>
+                </a>
+                <a href="#upload" class="nav-item" data-page="upload">
+                    <i data-lucide="file-up" size="20"></i>
+                    <span>Vault Upload</span>
+                </a>
+                <a href="#reports" class="nav-item" data-page="reports">
+                    <i data-lucide="clipboard-list" size="20"></i>
+                    <span>Medical Records</span>
+                </a>
+                <a href="#claims" class="nav-item" data-page="claims">
+                    <i data-lucide="shield" size="20"></i>
+                    <span>Clinical Audit</span>
+                </a>
+                <a href="#diseases" class="nav-item" data-page="diseases">
+                    <i data-lucide="map" size="20"></i>
+                    <span>Outbreak Radar</span>
+                </a>
+                <a href="#profile" class="nav-item" data-page="profile">
+                    <i data-lucide="user" size="20"></i>
+                    <span>Patient Identity</span>
+                </a>
+
+                <div class="nav-divider">Innovation Engine</div>
+                <a href="#problems" class="nav-item" data-page="problems">
+                    <i data-lucide="flask-conical" size="20"></i>
+                    <span>Challenges</span>
+                </a>
+                <a href="#ideas" class="nav-item" data-page="ideas">
+                    <i data-lucide="lightbulb" size="20"></i>
+                    <span>Clinical Ideas</span>
+                </a>
+                <a href="#sandbox" class="nav-item" data-page="sandbox">
+                    <i data-lucide="database" size="20"></i>
+                    <span>Data Lab</span>
+                </a>
+                <a href="#settings" class="nav-item" data-page="settings">
+                    <i data-lucide="settings" size="20"></i>
+                    <span>Preferences</span>
+                </a>
+            </nav>
+
+            <div style="padding: 24px; border-top: 1px solid var(--border-main);">
+                <div class="nav-item" style="color: var(--medical-error);">
+                    <i data-lucide="log-out" size="18"></i>
+                    <span>Terminate Demo</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main>
+            <header>
+                <div class="search-box">
+                    <i data-lucide="search" size="18" style="color: var(--text-secondary);"></i>
+                    <input type="text" placeholder="Lookup clinical codes or records...">
+                </div>
+
+                <div class="header-actions">
+                    <div class="icon-btn">
+                        <i data-lucide="bell" size="20"></i>
+                    </div>
+                    <div class="icon-btn" id="theme-toggle">
+                        <i data-lucide="moon" size="20"></i>
+                    </div>
+                    <div class="user-profile">
+                        <div style="text-align: right; margin-right: 12px;">
+                            <p style="font-size: 14px; font-weight: 700;" id="user-name">Authorized Guest</p>
+                            <p style="font-size: 10px; font-weight: 800; color: var(--medical-green); text-transform: uppercase;">Verified Node</p>
+                        </div>
+                        <div class="avatar">
+                            <i data-lucide="user" size="22" style="color: white;"></i>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <div id="content">
+                <!-- Pages will be rendered here -->
+                <div id="dashboard-page" class="page">
+                    <div class="mb-8">
+                        <h2 class="text-4xl font-bold">Welcome back, <span style="color: var(--accent-primary);" id="welcome-name">Guest</span></h2>
+                        <p class="text-slate-500 mt-1">Here's a quick look at your health ecosystem today.</p>
+                    </div>
+
+                    <div class="card-grid">
+                        <div class="premium-card">
+                            <p class="card-title">Health Score</p>
+                            <p class="card-value">85%</p>
+                            <div style="font-size: 10px; font-weight: 800; color: var(--medical-green); padding: 4px 12px; border-radius: 20px; background: rgba(34, 197, 94, 0.1); width: fit-content;">+2% improvement</div>
+                        </div>
+                        <div class="premium-card">
+                            <p class="card-title">Reports Filed</p>
+                            <p class="card-value" id="stats-reports">12</p>
+                            <div style="font-size: 10px; font-weight: 800; color: var(--accent-primary); padding: 4px 12px; border-radius: 20px; background: rgba(37, 99, 235, 0.1); width: fit-content;">Updated Live</div>
+                        </div>
+                        <div class="premium-card">
+                            <p class="card-title">Claim Status</p>
+                            <p class="card-value">Active</p>
+                            <div style="font-size: 10px; font-weight: 800; color: var(--secondary-teal); padding: 4px 12px; border-radius: 20px; background: rgba(13, 148, 136, 0.1); width: fit-content;">AI Audited</div>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 40px;">
+                        <div>
+                            <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 24px; display: flex; align-items: center; gap: 8px;">
+                                <i data-lucide="file-text" style="color: var(--accent-primary);"></i> Diagnostic Timeline
+                            </h3>
+                            <div id="activity-list" style="display: flex; flex-direction: column; gap: 16px;">
+                                <!-- Simulated activities -->
+                            </div>
+                        </div>
+                        <div>
+                            <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 24px; display: flex; align-items: center; gap: 8px;">
+                                <i data-lucide="plus" style="color: var(--secondary-teal);"></i> Clinic Actions
+                            </h3>
+                            <div style="display: flex; flex-direction: column; gap: 16px;">
+                                <button class="btn btn-primary" onclick="window.location.hash = '#upload'">Vault Upload</button>
+                                <button class="btn btn-primary" onclick="window.location.hash = '#claims'" style="background: var(--secondary-teal);">Clinical Audit</button>
+                                <button class="btn btn-primary" onclick="window.location.hash = '#sandbox'" style="background: #6366f1;">Data Lab</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>

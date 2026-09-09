@@ -22,4 +22,9 @@ class Config:
     GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
     GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
     GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-    GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+    GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+    
+    GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+    GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+    GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/api/telemedicine/oauth2callback")
+    GOOGLE_REFRESH_TOKEN = os.getenv("GOOGLE_REFRESH_TOKEN")

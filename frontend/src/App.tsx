@@ -17,11 +17,26 @@ import DataSandbox from './pages/innovation/DataSandbox';
 import Settings from './pages/Settings';
 import DiseaseHub from './pages/DiseaseHub';
 import DoctorDashboard from './pages/DoctorDashboard';
+import HospitalDashboard from './pages/HospitalDashboard';
+import DoctorDirectory from './pages/DoctorDirectory';
+import HospitalDirectory from './pages/HospitalDirectory';
+import HealthTriage from './pages/HealthTriage';
+import VaccinationHub from './pages/VaccinationHub';
+import FollowUpDashboard from './pages/FollowUpDashboard';
 
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) => {
   const { isAuthenticated, loading } = useAuth();
   if (loading) return null;
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
+  if (!isAuthenticated) return <Navigate to="/login" />;
+
+  const userRole = localStorage.getItem("userRole") || "patient";
+  if (allowedRoles && !allowedRoles.includes(userRole)) {
+    if (userRole === "doctor") return <Navigate to="/doctor" />;
+    if (userRole === "hospital") return <Navigate to="/hospital" />;
+    return <Navigate to="/" />;
+  }
+
+  return <>{children}</>;
 };
 
 function App() {
@@ -37,6 +52,47 @@ function App() {
         <ProtectedRoute>
           <DashboardLayout>
             <Dashboard />
+          </DashboardLayout>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/follow-ups" element={
+        <ProtectedRoute>
+          <DashboardLayout>
+            <FollowUpDashboard />
+          </DashboardLayout>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/vaccinations" element={
+        <ProtectedRoute>
+          <DashboardLayout>
+            <VaccinationHub />
+          </DashboardLayout>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/doctors" element={
+
+        <ProtectedRoute>
+          <DashboardLayout>
+            <DoctorDirectory />
+          </DashboardLayout>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/hospitals" element={
+        <ProtectedRoute>
+          <DashboardLayout>
+            <HospitalDirectory />
+          </DashboardLayout>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/triage" element={
+        <ProtectedRoute>
+          <DashboardLayout>
+            <HealthTriage />
           </DashboardLayout>
         </ProtectedRoute>
       } />
@@ -122,10 +178,20 @@ function App() {
         </ProtectedRoute>
       } />
 
+      {/* Doctor Dashboard */}
       <Route path="/doctor" element={
-        <ProtectedRoute>
+        <ProtectedRoute allowedRoles={['doctor', 'admin']}>
           <DashboardLayout>
             <DoctorDashboard />
+          </DashboardLayout>
+        </ProtectedRoute>
+      } />
+
+      {/* Hospital Dashboard */}
+      <Route path="/hospital" element={
+        <ProtectedRoute allowedRoles={['hospital', 'admin']}>
+          <DashboardLayout>
+            <HospitalDashboard />
           </DashboardLayout>
         </ProtectedRoute>
       } />
