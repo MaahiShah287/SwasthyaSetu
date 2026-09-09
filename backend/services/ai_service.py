@@ -478,5 +478,334 @@ RETURN STRICT JSON ONLY:
                 "disclaimer": "Educational AI summary. Always follow your physician's exact medical guidance."
             }
 
+    @staticmethod
+    async def multilingual_chatbot_response(
+        message: str,
+        language: str = "mr",
+        history: list = [],
+        grounded_data_context: str = ""
+    ) -> str:
+        """
+        Multilingual AI healthcare assistant responding strictly in the requested language
+        (Marathi, Hindi, or English) grounded in real SwasthyaSetu data.
+        """
+        lang_map = {
+            "mr": "Marathi (मराठी)",
+            "hi": "Hindi (हिंदी)",
+            "en": "English"
+        }
+        lang_name = lang_map.get(language, "Marathi (मराठी)")
+
+        context = ""
+        if history:
+            clean_history = []
+            for h in history[-6:]:  # Keep recent context
+                role = h.get("role", "user")
+                content = h.get("content") or (h.get("parts", [""])[0] if "parts" in h else "")
+                if content:
+                    clean_history.append(f"{role.capitalize()}: {content}")
+            if clean_history:
+                context = "Recent Conversation History:\n" + "\n".join(clean_history) + "\n\n"
+
+        grounding_section = ""
+        if grounded_data_context:
+            grounding_section = f"""
+VERIFIED SWASTHYASETU DATABASE CONTEXT (SOURCE OF TRUTH):
+---
+{grounded_data_context}
+---
+CRITICAL GROUNDING DIRECTIVE:
+1. You MUST use the verified SwasthyaSetu database information above to answer the user's question accurately.
+2. CITE the actual dates, doses, medicine availability, hospital names, or bed numbers from the context.
+3. NEVER invent or fabricate data that is not in the database context. If the database indicates no records were found, tell the patient politely in {lang_name} that no matching records were found in their profile or directory.
+"""
+
+        prompt = f"""
+You are the SwasthyaSetu AI Multilingual Healthcare Assistant (स्वास्थ्यसेतू बहुभाषिक आरोग्य सहाय्यक), an empathetic, highly knowledgeable medical navigation assistant for Indian citizens.
+
+TARGET LANGUAGE: {lang_name}
+CRITICAL REQUIREMENT: Your entire response MUST be written fluently, naturally, and warmly in {lang_name}.
+
+{grounding_section}
+
+{context}
+User Query: {message}
+
+RESPONSE GUIDELINES:
+1. Language: Answer naturally, respectfully, and clearly in {lang_name}. Use appropriate regional terms (e.g. for Marathi: नमस्कार, लसीकरण, औषधोपचार, आरोग्य केंद्र, इ.).
+2. Tone: Warm, empathetic, professional, and easily understandable by everyday patients and families.
+3. Healthcare Safety: You are an educational and navigation assistant. Clearly state that you do not replace a licensed medical doctor's diagnosis or emergency services (108).
+4. Clarity: Use clear formatting, bullet points where helpful, and avoid medical jargon when simpler terms exist. Keep medicine names and dosages exact.
+"""
+        return await AIService._call_ai(prompt, json_mode=False)
+
+    @staticmethod
+    async def transcribe_audio(audio_bytes: bytes, filename: str = "audio.webm", language: str = "mr") -> tuple:
+        """
+        Transcribe audio using Groq Whisper-large-v3 with Gemini Multimodal fallback.
+        Supports Marathi ('mr'), Hindi ('hi'), English ('en'), or 'auto' for language detection.
+        Returns: (transcription_text, detected_language_code)
+        """
+        auto_detect = (language == "auto")
+        lang_code = None if auto_detect else (
+            "mr" if language == "mr" else ("hi" if language == "hi" else "en")
+        )
+        fallback_lang = "mr"  # Default if auto-detect returns nothing
+        
+        # 1. Try Groq Whisper
+        if groq_client:
+            try:
+                print(f"DEBUG: Transcribing audio with Groq Whisper (lang={lang_code or 'auto-detect'})...")
+                create_kwargs = {
+                    "file": (filename, audio_bytes),
+                    "model": "whisper-large-v3",
+                    "response_format": "verbose_json",  # verbose returns detected language
+                    "temperature": 0.0
+                }
+                if lang_code:
+                    create_kwargs["language"] = lang_code
+                
+                transcription = await groq_client.audio.transcriptions.create(**create_kwargs)
+                text = str(transcription.text).strip()
+                
+                # Extract detected language from verbose_json response
+                detected_lang = lang_code or fallback_lang
+                if hasattr(transcription, "language") and transcription.language:
+                    whisper_lang = str(transcription.language).lower()
+                    # Map Whisper language codes to our codes
+                    if whisper_lang in ("marathi", "mr"):
+                        detected_lang = "mr"
+                    elif whisper_lang in ("hindi", "hi"):
+                        detected_lang = "hi"
+                    elif whisper_lang in ("english", "en"):
+                        detected_lang = "en"
+                    else:
+                        detected_lang = lang_code or fallback_lang
+                
+                if text and len(text) >= 2:
+                    print(f"DEBUG: Groq Whisper transcription success ({detected_lang}): {text[:50]}...")
+                    return text, detected_lang
+                elif not text:
+                    return "", detected_lang
+            except Exception as e:
+                print(f"Groq Whisper error: {e}")
+
+        # 2. Fallback to Gemini Multimodal Audio
+        print(f"DEBUG: Falling back to Gemini Multimodal for audio transcription (lang={lang_code or 'auto'})...")
+        try:
+            mime_type = "audio/webm"
+            lower_name = filename.lower()
+            if lower_name.endswith(".wav"):
+                mime_type = "audio/wav"
+            elif lower_name.endswith(".mp3"):
+                mime_type = "audio/mp3"
+            elif lower_name.endswith(".ogg"):
+                mime_type = "audio/ogg"
+            elif lower_name.endswith(".m4a"):
+                mime_type = "audio/m4a"
+
+            model = genai.GenerativeModel(Config.GEMINI_MODEL)
+            lang_display_map = {"mr": "Marathi", "hi": "Hindi", "en": "English"}
+            lang_display = lang_display_map.get(lang_code, "Marathi, Hindi, or English (detect automatically)")
+            prompt = (
+                f"Accurately transcribe the healthcare speech spoken in this audio recording. "
+                f"The language spoken is {lang_display}. "
+                "Return ONLY the transcribed words. Do not add quotes, commentary, or markdown formatting."
+            )
+            
+            media_part = {
+                "mime_type": mime_type,
+                "data": audio_bytes
+            }
+            res = await model.generate_content_async([prompt, media_part])
+            text = str(res.text).strip()
+            # For auto-detect via Gemini, use client-side detection fallback
+            detected = lang_code or fallback_lang
+            return text, detected
+        except Exception as e:
+            print(f"Gemini audio transcription fallback error: {e}")
+            raise Exception(f"Voice transcription service unavailable: {str(e)}")
+
+    @staticmethod
+    async def explain_simply(medical_text: str, language: str = "mr") -> dict:
+        """
+        Simplifies doctor instructions, prescriptions, or follow-up notes for patients.
+        STRICT SAFETY:
+        - NEVER alter medicine names, dosages, vaccine dates, or appointment dates.
+        - Only translate/simplify explanatory language into patient-friendly Marathi/Hindi/English.
+        """
+        lang_map = {
+            "mr": "Marathi (मराठी)",
+            "hi": "Hindi (हिंदी)",
+            "en": "English"
+        }
+        lang_name = lang_map.get(language, "Marathi (मराठी)")
+
+        prompt = f"""
+You are a specialized Medical Simplification and Patient Education AI assistant for SwasthyaSetu.
+Your mission is to translate and simplify the following clinical instructions for a patient into plain, reassuring, and completely understandable {lang_name}.
+
+ORIGINAL CLINICAL / DOCTOR TEXT:
+\"\"\"{medical_text}\"\"\"
+
+STRICT SAFETY DIRECTIVES:
+1. DO NOT CHANGE: Medicine names, dosages (mg, ml, puffs), frequencies (1-0-1, OD, BD, TDS), appointment dates, vaccine dates, diagnostic numbers, or critical doctor orders. These MUST remain exact and uncorrupted.
+2. DO SIMPLIFY: The reasons, preparation guidelines, administration tips (e.g. take after food with water), warning signs, and what the patient should do next.
+3. OUTPUT LANGUAGE: All simplified text, instructions, and bullet points MUST be strictly in {lang_name}.
+
+RETURN STRICT JSON ONLY IN THIS STRUCTURE:
+{{
+    "simplified_title": "Short reassuring title in {lang_name}",
+    "simplified_explanation": "2-3 simple sentences explaining what the doctor's instructions mean in plain language in {lang_name}",
+    "what_you_need_to_do": [
+        "Action step 1 in {lang_name}",
+        "Action step 2 in {lang_name}"
+    ],
+    "preserved_critical_details": [
+        "Exact medicine / dosage / appointment date extracted without alteration"
+    ],
+    "when_to_seek_urgent_help": "Simple emergency warning sign in {lang_name}",
+    "disclaimer": "This simplified guide is generated by SwasthyaSetu AI for patient understanding. Always follow your physician's exact medical guidance."
+}}
+"""
+        try:
+            response_text = await AIService._call_ai(prompt, json_mode=True)
+            cleaned = str(response_text).replace("```json", "").replace("```", "").strip()
+            res = json.loads(cleaned)
+            return res
+        except Exception as e:
+            print(f"Explain Simply Error: {e}")
+            # Fallback deterministic response
+            if language == "mr":
+                return {
+                    "simplified_title": "वैद्यकीय सूचनांचे सोपे स्पष्टीकरण",
+                    "simplified_explanation": f"तुमच्या डॉक्टरांच्या मूळ सूचना: {medical_text}. कृपया औषधे डॉक्टरांनी सांगितल्याप्रमाणे वेळेवर घ्या.",
+                    "what_you_need_to_do": ["औषध डॉक्टरांच्या सल्ल्यानुसार घ्या", "काही त्रास वाटल्यास जवळच्या डॉक्टरांशी संपर्क साधा"],
+                    "preserved_critical_details": [medical_text],
+                    "when_to_seek_urgent_help": "अचानक जास्त त्रास झाल्यास लगेच १०८ वर संपर्क करा किंवा रुग्णालयात जा.",
+                    "disclaimer": "हे स्पष्टीकरण AI द्वारे सोपे केले आहे. डॉक्टरांच्या मूळ सल्ल्याचे तंतोतंत पालन करा."
+                }
+            elif language == "hi":
+                return {
+                    "simplified_title": "चिकित्सा निर्देशों का सरल स्पष्टीकरण",
+                    "simplified_explanation": f"आपके डॉक्टर के मूल निर्देश: {medical_text}. कृपया दवाइयां डॉक्टर के निर्देशानुसार समय पर लें।",
+                    "what_you_need_to_do": ["दवा डॉक्टर के परामर्श अनुसार लें", "समस्या होने पर तुरंत डॉक्टर से संपर्क करें"],
+                    "preserved_critical_details": [medical_text],
+                    "when_to_seek_urgent_help": "अधिक परेशानी होने पर तुरंत 108 पर कॉल करें या अस्पताल जाएं।",
+                    "disclaimer": "यह व्याख्या AI द्वारा सरल की गई है। डॉक्टर के निर्देशों का पालन करें।"
+                }
+            else:
+                return {
+                    "simplified_title": "Simplified Medical Explanation",
+                    "simplified_explanation": f"Doctor's original instruction: {medical_text}. Please adhere strictly to the prescribed regimen.",
+                    "what_you_need_to_do": ["Take medications as prescribed", "Reach out to your doctor if symptoms persist"],
+                    "preserved_critical_details": [medical_text],
+                    "when_to_seek_urgent_help": "Seek emergency medical care (108) if severe distress develops.",
+                    "disclaimer": "Educational AI explanation. Always follow your doctor's exact instructions."
+                }
 
 
+    @staticmethod
+    async def structure_field_note(spoken_text: str, worker_language: str = "mr") -> dict:
+        """
+        ASHA/ANM Field Note Structuring from voice/text observations.
+
+        CRITICAL SAFETY RULES (enforced in prompt + validated in code):
+        1. NEVER diagnoses conditions — only structures what was spoken.
+        2. NEVER prescribes medication or changes dosage.
+        3. NEVER invents patient data not present in the spoken text.
+        4. ALWAYS sets worker_confirmation_required = True.
+        5. Returns a structured template for HUMAN REVIEW ONLY.
+        6. No data is saved by this method; saving requires frontend confirmation.
+        """
+        lang_map = {
+            "mr": "Marathi (मराठी)",
+            "hi": "Hindi (हिंदी)",
+            "en": "English"
+        }
+        lang_name = lang_map.get(worker_language, "Marathi (मराठी)")
+
+        prompt = f"""
+You are an ASHA/ANM Field Note Structuring AI for SwasthyaSetu.
+Your ONLY job is to extract and organize information that the field worker has ALREADY SPOKEN or typed.
+
+SPOKEN/TYPED FIELD OBSERVATION:
+\"\"\"{spoken_text}\"\"\"
+
+STRICT SAFETY DIRECTIVES — MANDATORY:
+1. ONLY extract information explicitly present in the spoken text above. Do NOT add, infer, or invent any information not stated.
+2. Do NOT diagnose any disease or condition. Your role is purely to organize what the worker observed.
+3. Do NOT prescribe, recommend, or change any medication, dosage, or treatment.
+4. Do NOT generate appointment dates or vaccination schedules.
+5. Always set "worker_confirmation_required" to true.
+6. If a field is not mentioned in the spoken text, set it to null or an empty list — never guess.
+7. urgency_flag must be based ONLY on explicit urgency indicators in the text (e.g., unconscious, difficulty breathing, seizure → EMERGENCY; high fever, uncontrolled vomiting → URGENT; routine follow-up → ROUTINE).
+8. The disclaimer field must always be present and unchanged.
+9. All text fields in the output should be in {lang_name}.
+
+RETURN STRICT JSON ONLY:
+{{
+    "patient_name": "Name if stated, else null",
+    "age_approx": "Age if stated, else null",
+    "gender": "Gender if stated, else null",
+    "village_location": "Village/location if stated, else null",
+    "symptoms": ["List of symptoms explicitly mentioned"],
+    "vitals_mentioned": {{
+        "temperature": "e.g. 101°F if mentioned, else null",
+        "blood_pressure": "e.g. 120/80 if mentioned, else null",
+        "weight": "Weight if mentioned, else null",
+        "pulse": "Pulse if mentioned, else null",
+        "spo2": "SpO2 if mentioned, else null"
+    }},
+    "observations": "Free-text summary of what the worker observed, in {lang_name}",
+    "recommended_action": "Only if the worker explicitly stated a recommended action — do NOT generate this independently. null if not mentioned.",
+    "urgency_flag": "ROUTINE or URGENT or EMERGENCY — based strictly on symptoms mentioned",
+    "worker_confirmation_required": true,
+    "disclaimer": "This note was AI-structured from field worker voice observations. It requires mandatory review and confirmation by the ASHA/ANM worker before any clinical use. This is NOT a medical diagnosis and should not replace professional medical evaluation."
+}}
+"""
+        try:
+            response_text = await AIService._call_ai(prompt, json_mode=True)
+            cleaned = str(response_text).replace("```json", "").replace("```", "").strip()
+            result = json.loads(cleaned)
+
+            # Safety enforcement: these fields are ALWAYS overridden regardless of AI output
+            result["worker_confirmation_required"] = True
+            result["disclaimer"] = (
+                "This note was AI-structured from field worker voice observations. "
+                "It requires mandatory review and confirmation by the ASHA/ANM worker before any clinical use. "
+                "This is NOT a medical diagnosis and should not replace professional medical evaluation."
+            )
+
+            # Validate urgency_flag
+            valid_urgency = {"ROUTINE", "URGENT", "EMERGENCY"}
+            if result.get("urgency_flag", "").upper() not in valid_urgency:
+                result["urgency_flag"] = "ROUTINE"
+            else:
+                result["urgency_flag"] = result["urgency_flag"].upper()
+
+            return result
+
+        except Exception as e:
+            print(f"structure_field_note AI error: {e}")
+            # Deterministic fallback — never fails the worker
+            return {
+                "patient_name": None,
+                "age_approx": None,
+                "gender": None,
+                "village_location": None,
+                "symptoms": [],
+                "vitals_mentioned": {
+                    "temperature": None, "blood_pressure": None,
+                    "weight": None, "pulse": None, "spo2": None
+                },
+                "observations": spoken_text,
+                "recommended_action": None,
+                "urgency_flag": "ROUTINE",
+                "worker_confirmation_required": True,
+                "disclaimer": (
+                    "This note was AI-structured from field worker voice observations. "
+                    "It requires mandatory review and confirmation by the ASHA/ANM worker before any clinical use. "
+                    "This is NOT a medical diagnosis."
+                )
+            }

@@ -384,10 +384,19 @@ async def get_me(current_user: dict = Depends(get_current_user)):
     elif role == "hospital":
         hospital_info = await healthcare_facilities_collection.find_one({"admin_email": email}, {"_id": 0})
         
+    preferred_language = "mr"
+    if user and user.get("preferred_language"):
+        preferred_language = user["preferred_language"]
+    else:
+        prof = await profile_collection.find_one({"email": email})
+        if prof and prof.get("preferred_language"):
+            preferred_language = prof["preferred_language"]
+        
     return {
         "email": email,
         "name": current_user.get("name", "User"),
         "role": role,
+        "preferred_language": preferred_language,
         "doctor": doctor_info,
         "hospital": hospital_info
     }

@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import api from '../api/instance';
-import { User, ShieldAlert, Save, Loader2, HeartPulse, UserCircle, Droplets, Calendar, Smartphone, PlusCircle, Activity } from 'lucide-react';
+import { User, ShieldAlert, Save, Loader2, HeartPulse, UserCircle, Droplets, Calendar, Smartphone, PlusCircle, Activity, WifiOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../context/ThemeContext';
+import { useOffline } from '../context/OfflineContext';
 
 export default function EmergencyProfile() {
   const { theme } = useTheme();
+  const { effectiveOnline } = useOffline();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState({
@@ -42,8 +44,12 @@ export default function EmergencyProfile() {
     e.preventDefault();
     setSaving(true);
     try {
-      await api.put('/profile/', profile);
-      alert('Profile updated successfully');
+      const res = await api.put('/profile/', profile);
+      if (res?.data?.queued) {
+        alert('Profile saved offline to local queue! Will sync automatically when connection returns.');
+      } else {
+        alert('Profile updated successfully');
+      }
     } catch (err) {
       console.error(err);
     }
@@ -62,6 +68,21 @@ export default function EmergencyProfile() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-10 py-4 pb-20">
+      {/* Offline Mode Banner */}
+      {!effectiveOnline && (
+        <div className="p-4 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-200 text-xs flex flex-wrap items-center justify-between gap-3 shadow-md">
+          <div className="flex items-center space-x-2.5">
+            <WifiOff className="w-5 h-5 text-amber-400 shrink-0" />
+            <div>
+              <span className="font-bold">Offline Emergency Profile:</span> Displaying local snapshot. Any edits will be safely queued in IndexedDB and synchronized with the server when reconnected.
+            </div>
+          </div>
+          <span className="px-2.5 py-1 rounded-full bg-amber-500/20 text-[10px] font-bold uppercase tracking-wider border border-amber-500/40 shrink-0">
+            Cached Snapshot
+          </span>
+        </div>
+      )}
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
         <div className="space-y-2">
           <motion.div 

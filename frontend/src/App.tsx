@@ -23,6 +23,7 @@ import HospitalDirectory from './pages/HospitalDirectory';
 import HealthTriage from './pages/HealthTriage';
 import VaccinationHub from './pages/VaccinationHub';
 import FollowUpDashboard from './pages/FollowUpDashboard';
+import { OfflineSyncDashboard } from './pages/OfflineSyncDashboard';
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -166,6 +167,14 @@ function App() {
         <ProtectedRoute>
           <DashboardLayout>
             <DataSandbox />
+          </DashboardLayout>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/offline-sync" element={
+        <ProtectedRoute>
+          <DashboardLayout>
+            <OfflineSyncDashboard />
           </DashboardLayout>
         </ProtectedRoute>
       } />

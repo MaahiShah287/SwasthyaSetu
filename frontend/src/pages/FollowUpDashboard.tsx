@@ -20,12 +20,17 @@ import {
   Activity,
   Syringe,
   AlertCircle,
-  MessageSquare
+  MessageSquare,
+  Sparkles,
+  Loader2,
+  WifiOff
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { Link } from 'react-router-dom';
 import Skeleton from '../components/ui/Skeleton';
+import api from '../api/instance';
 import { followupApi } from '../api/followupApi';
+import { useOffline } from '../context/OfflineContext';
 import { 
   FollowUpRecord, 
   FollowUpSummary, 
@@ -37,6 +42,7 @@ import {
 
 export default function FollowUpDashboard() {
   const { theme } = useTheme();
+  const { effectiveOnline } = useOffline();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +62,10 @@ export default function FollowUpDashboard() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [explainItem, setExplainItem] = useState<FollowUpRecord | null>(null);
+  const [explainLoading, setExplainLoading] = useState(false);
+  const [explainResult, setExplainResult] = useState<any | null>(null);
+  const [showExplainModal, setShowExplainModal] = useState(false);
 
   // Form states
   const [completionNotes, setCompletionNotes] = useState('');
@@ -63,6 +73,28 @@ export default function FollowUpDashboard() {
   const [rescheduleTime, setRescheduleTime] = useState('10:00');
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  const handleExplainSimply = async (item: FollowUpRecord) => {
+    setExplainItem(item);
+    setShowExplainModal(true);
+    setExplainLoading(true);
+    setExplainResult(null);
+    try {
+      const userLang = localStorage.getItem('preferred_language') || 'mr';
+      const textToExplain = item.description 
+        ? `${item.title}: ${item.description}`
+        : `${item.title} scheduled on ${item.due_date} with Dr. ${item.doctor_name || 'Assigned Physician'}`;
+      const res = await api.post('/chatbot/explain-simply', {
+        text: textToExplain,
+        language: userLang
+      });
+      setExplainResult(res.data);
+    } catch (e) {
+      console.error('Explain simply error:', e);
+    } finally {
+      setExplainLoading(false);
+    }
+  };
 
   // Create form state
   const [newFollowUp, setNewFollowUp] = useState<CreateFollowUpInput>({
@@ -99,6 +131,12 @@ export default function FollowUpDashboard() {
 
   useEffect(() => {
     fetchData();
+
+    const handleSync = () => {
+      fetchData();
+    };
+    window.addEventListener('swasthyasetu:sync_completed', handleSync);
+    return () => window.removeEventListener('swasthyasetu:sync_completed', handleSync);
   }, []);
 
   // Filtered List
@@ -322,6 +360,21 @@ export default function FollowUpDashboard() {
             View Overdue Alerts
           </button>
         </motion.div>
+      )}
+
+      {/* Offline Mode Banner */}
+      {!effectiveOnline && (
+        <div className="p-4 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-200 text-xs flex flex-wrap items-center justify-between gap-3 shadow-md">
+          <div className="flex items-center space-x-3">
+            <WifiOff size={20} className="text-amber-400 shrink-0" />
+            <div>
+              <span className="font-bold">Offline Care Plan Mode:</span> Showing locally cached snapshots. Changes and new notes are queued in IndexedDB and will auto-sync upon reconnection.
+            </div>
+          </div>
+          <span className="px-2.5 py-1 rounded-full bg-amber-500/20 text-[10px] font-bold uppercase tracking-wider border border-amber-500/40 shrink-0">
+            Local Cache
+          </span>
+        </div>
       )}
 
       {/* Summary Cards */}
@@ -557,6 +610,14 @@ export default function FollowUpDashboard() {
                           className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-white/10 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/20 transition"
                         >
                           View Details
+                        </button>
+
+                        <button
+                          onClick={() => handleExplainSimply(item)}
+                          className="px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-cyan-500/10 text-blue-600 dark:text-cyan-400 border border-blue-200 dark:border-cyan-500/30 text-xs font-bold hover:bg-blue-100 dark:hover:bg-cyan-500/20 transition flex items-center space-x-1"
+                        >
+                          <Sparkles size={12} />
+                          <span>सोप्या भाषेत समजा (Explain Simply)</span>
                         </button>
 
                         {item.status !== 'COMPLETED' && item.status !== 'CANCELLED' && (
@@ -1080,6 +1141,105 @@ export default function FollowUpDashboard() {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* EXPLAIN SIMPLY MODAL */}
+      <AnimatePresence>
+        {showExplainModal && explainItem && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-cyan-500/20 p-6 rounded-3xl w-full max-w-lg shadow-2xl relative"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-white/10">
+                <div className="flex items-center space-x-2">
+                  <div className="p-2 rounded-xl bg-blue-50 dark:bg-cyan-500/10 text-blue-600 dark:text-cyan-400">
+                    <Sparkles size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
+                      सोप्या भाषेत स्पष्टीकरण (Explain Simply)
+                    </h3>
+                    <p className="text-[11px] text-slate-400">
+                      {explainItem.title}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowExplainModal(false)}
+                  className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400"
+                >
+                  <XCircle size={18} />
+                </button>
+              </div>
+
+              <div className="py-4 space-y-4 text-xs">
+                {explainLoading && (
+                  <div className="py-8 flex flex-col items-center justify-center space-y-2 text-slate-400">
+                    <Loader2 size={24} className="animate-spin text-blue-600" />
+                    <span>AI डॉक्टरांच्या सूचनांचे साध्या भाषेत रूपांतर करत आहे...</span>
+                  </div>
+                )}
+
+                {explainResult && (
+                  <div className="space-y-3">
+                    <div className="p-3.5 rounded-2xl bg-blue-50/70 dark:bg-cyan-950/20 border border-blue-200 dark:border-cyan-500/30">
+                      <h4 className="font-extrabold text-xs text-blue-900 dark:text-cyan-300 mb-1">
+                        {explainResult.simplified_title || 'डॉक्टरांच्या सूचनांचा अर्थ:'}
+                      </h4>
+                      <p className="text-slate-700 dark:text-slate-200 leading-relaxed">
+                        {explainResult.simplified_explanation}
+                      </p>
+                    </div>
+
+                    {explainResult.what_you_need_to_do && explainResult.what_you_need_to_do.length > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="font-black text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                          तुम्हाला काय करायचे आहे:
+                        </p>
+                        <ul className="space-y-1">
+                          {explainResult.what_you_need_to_do.map((step: string, sIdx: number) => (
+                            <li key={sIdx} className="flex items-start space-x-2">
+                              <CheckCircle2 size={14} className="text-emerald-500 shrink-0 mt-0.5" />
+                              <span className="text-slate-700 dark:text-slate-300">{step}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {explainResult.preserved_critical_details && explainResult.preserved_critical_details.length > 0 && (
+                      <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/5">
+                        <span className="text-[10px] font-bold text-slate-400 block mb-0.5">
+                          महत्त्वाचा तपशील (Unchanged Clinical Data):
+                        </span>
+                        <span className="font-mono text-[11px] text-cyan-600 dark:text-cyan-400 font-bold">
+                          {explainResult.preserved_critical_details.join(', ')}
+                        </span>
+                      </div>
+                    )}
+
+                    <p className="text-[10px] text-slate-400 italic pt-2 border-t border-slate-100 dark:border-white/5">
+                      {explainResult.disclaimer}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end pt-3 border-t border-slate-100 dark:border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setShowExplainModal(false)}
+                  className="px-5 py-2 rounded-xl bg-blue-600 text-white font-bold text-xs shadow-md hover:bg-blue-700 transition"
+                >
+                  समजले (Close)
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

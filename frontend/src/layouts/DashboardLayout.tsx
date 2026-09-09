@@ -25,7 +25,9 @@ import {
   Bed,
   Activity,
   Sparkles,
-  Syringe
+  Syringe,
+  Globe,
+  WifiOff
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -35,6 +37,8 @@ import ChatbotWidget from '../components/ChatbotWidget';
 import LocationPermissionModal from '../components/disease/LocationPermissionModal';
 import api from '../api/instance';
 import AIAutocompleteInput from '../components/AIAutocompleteInput';
+import { SupportedLanguage, SUPPORTED_LANGUAGES } from '../utils/translations';
+import { OfflineStatusBar } from '../components/OfflineStatusBar';
 
 const SidebarItem = ({ to, icon: Icon, label, active, onClick }: any) => (
   <Link to={to} onClick={onClick}>
@@ -114,6 +118,35 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [globalSearch, setGlobalSearch] = useState('');
+  const [currentLang, setCurrentLang] = useState<SupportedLanguage>('mr');
+
+  useEffect(() => {
+    const saved = localStorage.getItem('preferred_language') as SupportedLanguage;
+    if (saved && (saved === 'mr' || saved === 'hi' || saved === 'en')) {
+      setCurrentLang(saved);
+    } else if ((user as any)?.preferred_language) {
+      const userPref = (user as any).preferred_language as SupportedLanguage;
+      if (userPref === 'mr' || userPref === 'hi' || userPref === 'en') {
+        setCurrentLang(userPref);
+      }
+    }
+
+    const onLangChange = () => {
+      const updated = localStorage.getItem('preferred_language') as SupportedLanguage;
+      if (updated) setCurrentLang(updated);
+    };
+    window.addEventListener('languageChange', onLangChange);
+    return () => window.removeEventListener('languageChange', onLangChange);
+  }, [user]);
+
+  const handleLanguageSwitch = async (lang: SupportedLanguage) => {
+    setCurrentLang(lang);
+    localStorage.setItem('preferred_language', lang);
+    window.dispatchEvent(new Event('languageChange'));
+    try {
+      await api.patch('/profile/language', { preferred_language: lang });
+    } catch (e) {}
+  };
 
   useEffect(() => {
     requestLocation();
@@ -158,6 +191,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { to: '/reports', icon: ClipboardList, label: 'Medical Records' },
     { to: '/claims', icon: Shield, label: 'Clinical Audit' },
     { to: '/disease-hub', icon: MapIcon, label: 'Outbreak Radar' },
+    { to: '/offline-sync', icon: WifiOff, label: 'Offline Sync Hub' },
     { to: '/profile', icon: User, label: 'Patient Identity' },
     { type: 'divider', label: 'Innovation Engine' },
     { to: '/innovation/problems', icon: FlaskConical, label: 'Challenges' },
@@ -175,6 +209,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { to: '/triage', icon: Sparkles, label: 'AI Health Triage' },
     { to: '/reports', icon: ClipboardList, label: 'Case Folders' },
     { to: '/disease-hub', icon: MapIcon, label: 'Epidemiology' },
+    { to: '/offline-sync', icon: WifiOff, label: 'Offline Field Hub' },
     { type: 'divider', label: 'Medical Intelligence' },
     { to: '/claims', icon: Shield, label: 'Claim Verification' },
     { to: '/innovation/problems', icon: FlaskConical, label: 'Clinical Research' },
@@ -187,6 +222,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { to: '/hospitals', icon: Bed, label: 'Live Bed Matrix' },
     { to: '/doctors', icon: Stethoscope, label: 'Doctor Specialists' },
     { to: '/disease-hub', icon: MapIcon, label: 'Outbreak Radar' },
+    { to: '/offline-sync', icon: WifiOff, label: 'Offline Command' },
     { type: 'divider', label: 'Clinical Operations' },
     { to: '/claims', icon: Shield, label: 'Hospital Audit' },
     { to: '/settings', icon: Settings, label: 'Facility Profile' },
@@ -280,7 +316,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3">
+            {/* Language Switcher */}
+            <div className="flex items-center space-x-1 bg-[var(--bg-primary)] p-1 rounded-xl border border-[var(--border-main)] text-xs shadow-sm">
+              <Globe size={14} className="text-slate-400 ml-1.5 mr-0.5" />
+              {SUPPORTED_LANGUAGES.map((l) => (
+                <button
+                  key={l.code}
+                  onClick={() => handleLanguageSwitch(l.code)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all ${
+                    currentLang === l.code
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                  title={l.label}
+                >
+                  {l.nativeName}
+                </button>
+              ))}
+            </div>
+
             <button className="p-2.5 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5 transition-all relative">
               <Bell size={20} />
               <span className="absolute top-2 right-2 w-2 h-2 bg-blue-600 rounded-full border-2 border-white dark:border-slate-800" />
@@ -310,6 +365,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           </div>
         </header>
+
+        {/* Global Persistent Offline Status & Sync Bar */}
+        <OfflineStatusBar />
 
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto flex flex-col">

@@ -6,7 +6,7 @@ import os
 # Add the current directory to sys.path to ensure absolute imports work
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from routes import auth, reports, claims, profile, innovation, chatbot, suggestions, diseases, dashboard, triage, referrals, telemedicine, emergency, hospitals, vaccinations, followups, medicines, diagnostics
+from routes import auth, reports, claims, profile, innovation, chatbot, suggestions, diseases, dashboard, triage, referrals, telemedicine, emergency, hospitals, vaccinations, followups, medicines, diagnostics, health, offline_sync
 from database import init_indexes
 from routes.medicines import ensure_medicine_inventory_seeded
 from routes.diagnostics import ensure_diagnostic_services_seeded
@@ -28,6 +28,8 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
+app.include_router(health.router, prefix="/api/health", tags=["health"])
+app.include_router(offline_sync.router, prefix="/api/offline", tags=["offline-sync"])
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(reports.router, prefix="/api/reports", tags=["reports"])
 app.include_router(claims.router, prefix="/api/claims", tags=["claims"])

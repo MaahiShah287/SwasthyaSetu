@@ -30,17 +30,20 @@ import {
   Navigation,
   HelpCircle,
   MapPin,
-  Bot
+  Bot,
+  WifiOff
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/instance';
 import vaccinationApi, { Child, ChildSchedule, VaccineItem } from '../api/vaccinationApi';
 import Skeleton from '../components/ui/Skeleton';
+import { useOffline } from '../context/OfflineContext';
 
 export default function VaccinationHub() {
   const { theme } = useTheme();
   const navigate = useNavigate();
+  const { effectiveOnline } = useOffline();
 
   // Children State
   const [children, setChildren] = useState<Child[]>([]);
@@ -89,6 +92,12 @@ export default function VaccinationHub() {
 
   useEffect(() => {
     fetchChildren();
+
+    const handleSync = () => {
+      fetchChildren();
+    };
+    window.addEventListener('swasthyasetu:sync_completed', handleSync);
+    return () => window.removeEventListener('swasthyasetu:sync_completed', handleSync);
   }, []);
 
   const fetchChildren = async () => {
@@ -276,6 +285,21 @@ export default function VaccinationHub() {
           </button>
         </div>
       </div>
+
+      {/* Offline Mode Banner */}
+      {!effectiveOnline && (
+        <div className="p-3.5 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex flex-wrap items-center justify-between gap-2 text-xs text-amber-200 shadow-md">
+          <div className="flex items-center space-x-3">
+            <WifiOff size={18} className="text-amber-400 flex-shrink-0" />
+            <p className="font-medium">
+              <strong>Offline Immunization Hub:</strong> Operating on local cached registry. New registrations and vaccination logs are safely stored in IndexedDB and will auto-sync upon reconnection.
+            </p>
+          </div>
+          <span className="px-2.5 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-[10px] uppercase font-bold tracking-wider shrink-0">
+            Offline Cache
+          </span>
+        </div>
+      )}
 
       {/* Safety Disclaimer Banner */}
       <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center space-x-3 text-xs text-amber-800 dark:text-amber-300">

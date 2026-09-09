@@ -44,6 +44,13 @@ medicine_inventory_collection = db.get_collection("medicine_inventory")
 diagnostic_services_collection = db.get_collection("diagnostic_services")
 diagnostic_recommendations_collection = db.get_collection("diagnostic_recommendations")
 
+# Offline Sync Log Collection (for idempotency and sync history)
+offline_sync_log_collection = db.get_collection("offline_sync_log")
+
+# ASHA/ANM Community Health Worker Collections
+asha_visits_collection = db.get_collection("asha_community_visits")
+asha_case_reports_collection = db.get_collection("asha_case_reports")
+
 async def init_indexes():
     """Create MongoDB indexes for performance and data integrity."""
     try:
@@ -98,6 +105,23 @@ async def init_indexes():
         await diagnostic_recommendations_collection.create_index([("doctor_id", 1), ("created_at", -1)])
         await diagnostic_recommendations_collection.create_index([("consultation_id", 1)])
         await diagnostic_recommendations_collection.create_index([("appointment_id", 1)])
+
+        # Offline Sync Log indexes (idempotency key and user queries)
+        await offline_sync_log_collection.create_index([("local_id", 1)], unique=True)
+        await offline_sync_log_collection.create_index([("user_id", 1), ("created_at", -1)])
+        await offline_sync_log_collection.create_index([("sync_status", 1)])
+
+        # ASHA/ANM Community Visit indexes
+        await asha_visits_collection.create_index([("worker_email", 1), ("created_at", -1)])
+        await asha_visits_collection.create_index([("patient_email", 1), ("visit_date", -1)])
+        await asha_visits_collection.create_index([("visit_id", 1)], unique=True)
+        await asha_visits_collection.create_index([("worker_email", 1), ("visit_date", 1)])
+
+        # ASHA/ANM Case Report indexes
+        await asha_case_reports_collection.create_index([("worker_email", 1), ("created_at", -1)])
+        await asha_case_reports_collection.create_index([("patient_email", 1)])
+        await asha_case_reports_collection.create_index([("severity", 1), ("status", 1)])
+        await asha_case_reports_collection.create_index([("report_id", 1)], unique=True)
     except Exception as e:
         print(f"Warning: Index initialization note: {e}")
 
