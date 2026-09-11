@@ -127,6 +127,150 @@ async def get_all_hospitals(
         "timestamp": time.time()
     }
 
+
+@router.get("/nearby")
+async def get_nearby_facilities(
+    lat: float = Query(..., description="Latitude of user current location"),
+    lng: Optional[float] = Query(None, description="Longitude of user current location"),
+    lon: Optional[float] = Query(None, description="Longitude of user current location (alias)"),
+    radius_km: float = Query(5.0, description="Search radius in kilometers"),
+    facility_type: Optional[str] = Query(None, description="Optional facility type filter"),
+    category: Optional[str] = Query(None, description="Optional category filter"),
+    emergency_only: Optional[bool] = Query(False, description="Filter 24/7 trauma emergency facilities only")
+):
+    """
+    Live Location-Based Healthcare Discovery endpoint.
+    Performs geospatial querying against healthcare_facilities collection in MongoDB
+    and authoritatively calculates distance from user coordinates.
+    Returns facilities within radius_km sorted by distance_km, and includes Shatabdi Hospital, Govandi
+    as the stable demo/featured facility record.
+    """
+    user_lng = lng if lng is not None else lon
+    if user_lng is None:
+        raise HTTPException(status_code=422, detail="Missing required longitude parameter 'lng' or 'lon'.")
+
+    # Coordinate validation
+    if not (-90.0 <= lat <= 90.0):
+        raise HTTPException(status_code=400, detail="Invalid latitude. Must be between -90 and 90.")
+    if not (-180.0 <= user_lng <= 180.0):
+        raise HTTPException(status_code=400, detail="Invalid longitude. Must be between -180 and 180.")
+
+    # Ensure DB is seeded and location fields present
+    await FacilityService.ensure_seeded()
+
+    radius_meters = radius_km * 1000.0
+
+    # Build base filter
+    base_filter: Dict[str, Any] = {}
+    type_filter = facility_type or category
+    if type_filter and type_filter.lower() != "all":
+        tf_lower = type_filter.lower()
+        if "vaccin" in tf_lower:
+            base_filter["$or"] = [
+                {"facility_type": "vaccination_centre"},
+                {"category": {"$regex": "vaccination", "$options": "i"}},
+                {"type": {"$regex": "vaccination", "$options": "i"}},
+                {"services": {"$regex": "vaccin|immunization", "$options": "i"}}
+            ]
+        elif "phc" in tf_lower:
+            base_filter["$or"] = [
+                {"facility_type": "phc"},
+                {"category": "PHC"},
+                {"type": {"$regex": "primary health", "$options": "i"}}
+            ]
+        elif "chc" in tf_lower:
+            base_filter["$or"] = [
+                {"facility_type": "chc"},
+                {"category": "CHC"},
+                {"type": {"$regex": "community health", "$options": "i"}}
+            ]
+        elif "sub" in tf_lower:
+            base_filter["$or"] = [
+                {"facility_type": "sub_centre"},
+                {"category": "Sub-Centre"},
+                {"type": {"$regex": "sub-centre|sub centre", "$options": "i"}}
+            ]
+        elif "hospital" in tf_lower:
+            base_filter["$or"] = [
+                {"facility_type": "hospital"},
+                {"category": "Hospital"},
+                {"type": {"$regex": "hospital", "$options": "i"}}
+            ]
+
+    if emergency_only:
+        base_filter["emergency_24_7"] = True
+
+    # MongoDB 2dsphere geospatial query attempt
+    geo_query = dict(base_filter)
+    geo_query["location"] = {
+        "$nearSphere": {
+            "$geometry": {
+                "type": "Point",
+                "coordinates": [user_lng, lat]
+            },
+            "$maxDistance": radius_meters
+        }
+    }
+
+    facilities = []
+    try:
+        cursor = healthcare_facilities_collection.find(geo_query, {"_id": 0})
+        async for doc in cursor:
+            dist = haversine_distance(
+                lat, user_lng,
+                doc.get("latitude", DEFAULT_LAT),
+                doc.get("longitude", DEFAULT_LON)
+            )
+            doc["distance_km"] = dist
+            facilities.append(doc)
+    except Exception:
+        # Fallback to in-memory Haversine distance calculation over entire collection
+        cursor = healthcare_facilities_collection.find(base_filter, {"_id": 0})
+        async for doc in cursor:
+            dist = haversine_distance(
+                lat, user_lng,
+                doc.get("latitude", DEFAULT_LAT),
+                doc.get("longitude", DEFAULT_LON)
+            )
+            if dist <= radius_km:
+                doc["distance_km"] = dist
+                facilities.append(doc)
+
+    # Sort authoritatively by actual distance server-side
+    facilities.sort(key=lambda x: x["distance_km"])
+
+    # Fetch/construct Shatabdi Hospital, Govandi as constant demo facility
+    shatabdi_doc = await healthcare_facilities_collection.find_one(
+        {"$or": [{"facility_id": "FAC-SHATABDI-GOVANDI"}, {"name": {"$regex": "Shatabdi Hospital", "$options": "i"}}]},
+        {"_id": 0}
+    )
+    if not shatabdi_doc:
+        from services.facility_service import SHATABDI_HOSPITAL_GOVANDI
+        shatabdi_doc = dict(SHATABDI_HOSPITAL_GOVANDI)
+
+    shatabdi_dist = haversine_distance(
+        lat, user_lng,
+        shatabdi_doc.get("latitude", 19.0435),
+        shatabdi_doc.get("longitude", 72.9090)
+    )
+    shatabdi_doc["distance_km"] = shatabdi_dist
+    shatabdi_doc["is_within_radius"] = shatabdi_dist <= radius_km
+    shatabdi_doc["is_demo_facility"] = True
+    shatabdi_doc["label"] = "Demo / Featured Facility"
+
+    return {
+        "success": True,
+        "user_location": {
+            "latitude": lat,
+            "longitude": user_lng,
+            "radius_km": radius_km
+        },
+        "count": len(facilities),
+        "facilities": facilities,
+        "featured_demo_facility": shatabdi_doc,
+        "timestamp": time.time()
+    }
+
 @router.get("/admin/me")
 async def get_hospital_dashboard_profile(
     current_user: dict = Depends(get_current_user)

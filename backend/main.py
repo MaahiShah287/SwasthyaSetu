@@ -44,6 +44,7 @@ app.include_router(referrals.router, prefix="/api/referrals", tags=["referrals"]
 app.include_router(telemedicine.router, prefix="/api/telemedicine", tags=["telemedicine"])
 app.include_router(emergency.router, prefix="/api/emergency", tags=["emergency"])
 app.include_router(hospitals.router, prefix="/api/hospitals", tags=["hospitals"])
+app.include_router(hospitals.router, prefix="/api/access", tags=["access"])
 app.include_router(vaccinations.router, prefix="/api/vaccinations", tags=["vaccinations"])
 app.include_router(followups.router, prefix="/api/follow-ups", tags=["followups"])
 app.include_router(medicines.router, prefix="/api/medicines", tags=["medicines"])

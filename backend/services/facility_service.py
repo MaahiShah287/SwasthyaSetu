@@ -7,7 +7,53 @@ from database import healthcare_facilities_collection
 DEFAULT_LAT = 19.0760
 DEFAULT_LON = 72.8777
 
+SHATABDI_HOSPITAL_GOVANDI = {
+    "facility_id": "FAC-SHATABDI-GOVANDI",
+    "name": "Shatabdi Hospital, Govandi",
+    "type": "Municipal General Hospital",
+    "category": "Hospital",
+    "facility_type": "hospital",
+    "city": "Mumbai",
+    "district": "Mumbai Suburban",
+    "state": "Maharashtra",
+    "latitude": 19.0435,
+    "longitude": 72.9090,
+    "location": {
+        "type": "Point",
+        "coordinates": [72.9090, 19.0435]
+    },
+    "address": "Mt Mary Church Rd, Near Govandi Railway Station, Govandi East, Mumbai, Maharashtra 400088",
+    "phone": "+91 22 2556 4022",
+    "emergency_phone": "108",
+    "operating_hours": "24/7 Emergency Care",
+    "is_24x7_emergency": True,
+    "emergency_24_7": True,
+    "status": "Operational",
+    "total_beds": 310,
+    "available_beds": 42,
+    "icu_beds_available": 5,
+    "oxygen_beds_available": 18,
+    "services": [
+        "General consultation",
+        "Emergency care",
+        "24/7 Trauma Services",
+        "Pediatric care",
+        "Maternity and Neonatal Care",
+        "Diagnostic testing",
+        "Laboratory services",
+        "Pharmacy",
+        "Vaccination Services"
+    ],
+    "specialists": ["General Physician", "General Surgeon", "Gynecologist", "Pediatrician", "Emergency Medicine"],
+    "has_lab": True,
+    "has_pharmacy": True,
+    "has_telemedicine": True,
+    "is_demo_facility": True,
+    "last_updated": time.time()
+}
+
 SEED_FACILITIES = [
+    SHATABDI_HOSPITAL_GOVANDI,
     {
         "facility_id": "FAC-001",
         "name": "Sanjeevani District Civil Hospital",
@@ -18,6 +64,7 @@ SEED_FACILITIES = [
         "state": "Maharashtra",
         "latitude": 19.0820,
         "longitude": 72.8890,
+        "location": {"type": "Point", "coordinates": [72.8890, 19.0820]},
         "address": "Civil Lines Road, Sector 4, Central Region",
         "phone": "+91 22 2555 0199",
         "emergency_phone": "108",
@@ -57,6 +104,7 @@ SEED_FACILITIES = [
         "state": "Maharashtra",
         "latitude": 19.1650,
         "longitude": 73.2380,
+        "location": {"type": "Point", "coordinates": [73.2380, 19.1650]},
         "address": "Post Office Square, Badlapur Rural",
         "phone": "+91 251 2690 112",
         "emergency_phone": "+91 251 2690 911",
@@ -93,6 +141,7 @@ SEED_FACILITIES = [
         "state": "Maharashtra",
         "latitude": 18.9100,
         "longitude": 73.3280,
+        "location": {"type": "Point", "coordinates": [73.3280, 18.9100]},
         "address": "Station Road, Karjat East",
         "phone": "+91 2148 222 045",
         "emergency_phone": "108",
@@ -131,6 +180,7 @@ SEED_FACILITIES = [
         "state": "Maharashtra",
         "latitude": 19.0550,
         "longitude": 72.8310,
+        "location": {"type": "Point", "coordinates": [72.8310, 19.0550]},
         "address": "SV Road, Bandra West",
         "phone": "+91 22 6100 9000",
         "emergency_phone": "+91 22 6100 9999",
@@ -169,6 +219,7 @@ SEED_FACILITIES = [
         "state": "Maharashtra",
         "latitude": 19.2100,
         "longitude": 73.1500,
+        "location": {"type": "Point", "coordinates": [73.1500, 19.2100]},
         "address": "Bazaar Peth, Shahapur",
         "phone": "+91 2527 240 100",
         "emergency_phone": "+91 2527 240 101",
@@ -201,6 +252,7 @@ SEED_FACILITIES = [
         "state": "Maharashtra",
         "latitude": 19.1100,
         "longitude": 72.9000,
+        "location": {"type": "Point", "coordinates": [72.9000, 19.1100]},
         "address": "LBS Marg, Ghatkopar West",
         "phone": "+91 22 2500 4433",
         "emergency_phone": "+91 22 2500 4434",
@@ -232,6 +284,7 @@ SEED_FACILITIES = [
         "state": "Maharashtra",
         "latitude": 19.0178,
         "longitude": 72.8478,
+        "location": {"type": "Point", "coordinates": [72.8478, 19.0178]},
         "address": "Dadar West, Near Railway Station",
         "phone": "+91 22 2413 5200",
         "emergency_phone": "108",
@@ -265,6 +318,7 @@ SEED_FACILITIES = [
         "state": "Maharashtra",
         "latitude": 19.0650,
         "longitude": 72.8790,
+        "location": {"type": "Point", "coordinates": [72.8790, 19.0650]},
         "address": "SG Barve Marg, Kurla East",
         "phone": "+91 22 2522 1104",
         "emergency_phone": "108",
@@ -298,6 +352,7 @@ SEED_FACILITIES = [
         "state": "Maharashtra",
         "latitude": 19.1980,
         "longitude": 72.9780,
+        "location": {"type": "Point", "coordinates": [72.9780, 19.1980]},
         "address": "Eastern Express Highway, Thane West",
         "phone": "+91 22 2533 8899",
         "emergency_phone": "108",
@@ -331,6 +386,7 @@ SEED_FACILITIES = [
         "state": "Maharashtra",
         "latitude": 19.1680,
         "longitude": 73.2420,
+        "location": {"type": "Point", "coordinates": [73.2420, 19.1680]},
         "address": "Gram Panchayat Bhawan, Badlapur East",
         "phone": "+91 251 2690 115",
         "emergency_phone": "108",
@@ -391,13 +447,33 @@ def format_data_freshness(timestamp: float) -> Tuple[str, bool]:
 class FacilityService:
     @staticmethod
     async def ensure_seeded():
-        """Ensure database has facility seed records."""
+        """Ensure database has facility seed records including constant Shatabdi Hospital."""
         try:
             count = await healthcare_facilities_collection.count_documents({})
             if count == 0:
                 print("Seeding healthcare facilities collection with initial rural & urban dataset...")
                 await healthcare_facilities_collection.insert_many(SEED_FACILITIES)
                 print(f"Successfully seeded {len(SEED_FACILITIES)} facilities.")
+            else:
+                # Ensure constant Shatabdi Hospital, Govandi exists
+                shatabdi = await healthcare_facilities_collection.find_one({
+                    "$or": [
+                        {"facility_id": "FAC-SHATABDI-GOVANDI"},
+                        {"name": {"$regex": "Shatabdi Hospital", "$options": "i"}}
+                    ]
+                })
+                if not shatabdi:
+                    await healthcare_facilities_collection.insert_one(SHATABDI_HOSPITAL_GOVANDI)
+                    print("Seeded constant demo facility: Shatabdi Hospital, Govandi.")
+
+                # Populate location GeoJSON field for documents missing it
+                async for fac in healthcare_facilities_collection.find({"location": {"$exists": False}}):
+                    lat = fac.get("latitude", DEFAULT_LAT)
+                    lon = fac.get("longitude", DEFAULT_LON)
+                    await healthcare_facilities_collection.update_one(
+                        {"_id": fac["_id"]},
+                        {"$set": {"location": {"type": "Point", "coordinates": [lon, lat]}}}
+                    )
         except Exception as e:
             print(f"Error seeding healthcare facilities: {e}")
 

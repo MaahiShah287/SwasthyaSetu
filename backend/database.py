@@ -78,6 +78,7 @@ async def init_indexes():
         await vaccination_reminders_collection.create_index([("parent_id", 1)])
         await healthcare_facilities_collection.create_index([("facility_type", 1)])
         await healthcare_facilities_collection.create_index([("category", 1)])
+        await healthcare_facilities_collection.create_index([("location", "2dsphere")])
 
         # Medicine Inventory indexes
         await medicine_inventory_collection.create_index([("facility_id", 1), ("medicine_name", 1)])

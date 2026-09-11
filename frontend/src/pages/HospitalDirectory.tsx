@@ -39,6 +39,7 @@ import MedicineAvailabilityMap from '../components/hospital/MedicineAvailability
 import MedicineExplainModal from '../components/hospital/MedicineExplainModal';
 import { MedicineAvailabilityResult, MedicineSuggestion } from '../types/medicine';
 import { DiagnosticAvailabilityResult, DiagnosticSuggestion } from '../types/diagnostic';
+import NearbyHealthcareDiscovery from '../components/hospital/NearbyHealthcareDiscovery';
 
 export default function HospitalDirectory() {
   const { theme } = useTheme();
@@ -50,10 +51,11 @@ export default function HospitalDirectory() {
   const initialTabParam = searchParams.get('tab') || searchParams.get('view');
   const isInitialMedicineMode = initialTabParam === 'medicine' || initialTabParam === 'medicines' || !!initialMedicineParam;
 
-  // Directory Mode: Facilities & Beds vs Medicine vs Diagnostics
+  // Directory Mode: Nearby Live Location vs Facilities & Beds vs Medicine vs Diagnostics
   const isInitialDiagnosticsMode = initialTabParam === 'diagnostics' || initialTabParam === 'diagnostic';
-  const [directoryMode, setDirectoryMode] = useState<'facilities' | 'medicines' | 'diagnostics'>(
-    isInitialDiagnosticsMode ? 'diagnostics' : isInitialMedicineMode ? 'medicines' : 'facilities'
+  const isInitialNearbyMode = initialTabParam === 'nearby' || initialTabParam === 'location' || initialTabParam === 'geospatial';
+  const [directoryMode, setDirectoryMode] = useState<'nearby' | 'facilities' | 'medicines' | 'diagnostics'>(
+    isInitialNearbyMode ? 'nearby' : isInitialDiagnosticsMode ? 'diagnostics' : isInitialMedicineMode ? 'medicines' : 'facilities'
   );
 
   // Pre-filled test from URL (e.g. from patient dashboard "Find Diagnostic Centre")
@@ -300,12 +302,15 @@ export default function HospitalDirectory() {
 
         <div className="flex items-center space-x-3">
           <button
-            onClick={handleUseMyLocation}
+            onClick={() => {
+              setDirectoryMode('nearby');
+              handleUseMyLocation();
+            }}
             disabled={locating}
-            className="px-4 py-2.5 rounded-2xl bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 font-bold text-xs flex items-center space-x-2 border border-indigo-500/20 transition-all"
+            className="px-4 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center space-x-2 shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
           >
             {locating ? <Loader2 size={15} className="animate-spin" /> : <Navigation size={15} />}
-            <span>{userLocation ? '📍 Location Active' : '📍 Use My Location'}</span>
+            <span>{userLocation ? '📍 Location Active' : '📍 Use Current Location'}</span>
           </button>
 
           <button
@@ -318,9 +323,21 @@ export default function HospitalDirectory() {
         </div>
       </div>
 
-      {/* Directory Mode Switcher: Facilities/Beds vs Medicine Availability */}
+      {/* Directory Mode Switcher: Live Location vs Facilities/Beds vs Medicine Availability vs Diagnostics */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--border-main)] pb-4">
-        <div className="flex items-center space-x-2 p-1.5 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-main)] shadow-sm">
+        <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-main)] shadow-sm">
+          <button
+            onClick={() => setDirectoryMode('nearby')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 ${
+              directoryMode === 'nearby'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
+            }`}
+          >
+            <Navigation size={14} />
+            <span>📍 Live Location Discovery</span>
+          </button>
+
           <button
             onClick={() => setDirectoryMode('facilities')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 ${
@@ -382,6 +399,13 @@ export default function HospitalDirectory() {
           </select>
         </div>
       </div>
+
+      {/* ========================================================================= */}
+      {/* MODE 0: LIVE LOCATION-BASED HEALTHCARE DISCOVERY */}
+      {/* ========================================================================= */}
+      {directoryMode === 'nearby' && (
+        <NearbyHealthcareDiscovery onSelectFacilityForBooking={(fac) => setSelectedHospitalForBooking(fac)} />
+      )}
 
       {/* ========================================================================= */}
       {/* MODE 1: MEDICINE AVAILABILITY & STOCK MANAGEMENT */}

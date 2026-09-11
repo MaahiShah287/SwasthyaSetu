@@ -1,5 +1,7 @@
 # Python
 .venv/
+new_venv/
+new_venv_old/
 __pycache__/
 *.py[cod]
 *$py.class
